@@ -48,6 +48,11 @@ class TestCalculator(unittest.TestCase):
         result = calc.modulo(-7, 3)
         self.assertEqual(result, 2)  # Expect -7 % 3 = 2 (sign of divisor)
 
+    def test_modulo_by_zero(self):
+        calc = Calculator()
+        with self.assertRaises(ZeroDivisionError):
+            calc.modulo(5, 0)  # Expect modulo by zero to raise an error
+
 
 if __name__ == "__main__":
     unittest.main()
