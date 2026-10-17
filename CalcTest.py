@@ -32,5 +32,10 @@ class TestCalculator(unittest.TestCase):
         result = calc.divide(-7, 3)
         self.assertEqual(result, -3)  # Expect -7 / 3 = -3 (floor division)
 
+    def test_divide_return_int(self):
+        calc = Calculator()
+        result = calc.divide(7, 3)
+        self.assertIsInstance(result, int)  # Expect the result to be an integer
+
 if __name__ == "__main__":
     unittest.main()
