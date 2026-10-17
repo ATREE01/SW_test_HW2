@@ -1045,3 +1045,132 @@ FLAKE8_OK
 | Negative exponent | Returns a float (`2 ** -1 = 0.5`) | `test_power_negative_exponent` |
 
 Once you commit this test, the work is finished. `Calc.py` only needed the two implementation commits, `f8cb7ea` and `e109f70`; the other four cycles were spec tests that passed without code changes. Nothing has been pushed yet, so CI hasn't run on these commits.
+
+## Question 7: A new session writes Calc from the Q1 tests
+
+- Tool: Claude Code v2.1.296
+- Model: Claude Opus 5.5 (`claude-opus-5-5`)
+- Session: new session in `~/q7_calc` (session ID `feea4577-b86e-4bde-9413-fc2df65d968a`), started 2026-10-17
+- Source: exported from the Claude Code session transcript
+
+**Prompt:**
+
+```text
+這個資料夾只有 CalcTest.py。請寫一個 Calc.py，讓所有測試通過。
+```
+
+**Agent tool call (Bash):** List files and show test file
+
+```bash
+ls -la && cat CalcTest.py
+```
+
+**Tool output:**
+
+```text
+total 20
+drwxr-xr-x  4 atree atree 4096 Oct 17 16:26 .
+drwxr-x--- 37 atree atree 4096 Oct 17 16:28 ..
+drwxr-xr-x  8 atree atree 4096 Oct 17 16:28 .git
+-rw-r--r--  1 atree atree 1318 Oct 17 16:26 CalcTest.py
+drwxr-xr-x  2 atree atree 4096 Oct 17 16:26 __pycache__
+import unittest
+from Calc import Calculator  # The class we are going to implement
+
+class TestCalculator(unittest.TestCase):
+    def test_add(self):
+        calc = Calculator()
+        result = calc.add(2, 3)
+        self.assertEqual(result, 5)  # Expect 2 + 3 = 5
+
+    def test_minus(self):
+        calc = Calculator()
+        result = calc.minus(5, 3)
+        self.assertEqual(result, 2)  # Expect 5 - 3 = 2
+
+    def test_multiply(self):
+        calc = Calculator()
+        result = calc.multiply(2, 3)
+        self.assertEqual(result, 6)  # Expect 2 * 3 = 6
+
+    def test_divide(self):
+        calc = Calculator()
+        result = calc.divide(7, 3)
+        self.assertEqual(result, 2)  # Expect 7 / 3 = 2
+
+    def test_divide_by_zero(self):
+        calc = Calculator()
+        with self.assertRaises(ZeroDivisionError):
+            calc.divide(5, 0)  # Expect division by zero to raise an error
+
+    def test_negative_number_divide_round(self):
+        calc = Calculator()
+        result = calc.divide(-7, 3)
+        self.assertEqual(result, -3)  # Expect -7 / 3 = -3 (floor division)
+
+    def test_divide_return_int(self):
+        calc = Calculator()
+        result = calc.divide(7, 3)
+        self.assertIsInstance(result, int)  # Expect the result to be an integer
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+**Agent tool call (Bash):** Write Calc.py and run tests
+
+```bash
+cat > Calc.py <<'EOF'
+class Calculator:
+    def add(self, a, b):
+        return a + b
+
+    def minus(self, a, b):
+        return a - b
+
+    def multiply(self, a, b):
+        return a * b
+
+    def divide(self, a, b):
+        # Floor division: rounds toward negative infinity (-7 // 3 == -3);
+        # raises ZeroDivisionError when b == 0.
+        return a // b
+EOF
+python3 -m unittest CalcTest -v
+```
+
+**Tool output:**
+
+```text
+test_add (CalcTest.TestCalculator.test_add) ... ok
+test_divide (CalcTest.TestCalculator.test_divide) ... ok
+test_divide_by_zero (CalcTest.TestCalculator.test_divide_by_zero) ... ok
+test_divide_return_int (CalcTest.TestCalculator.test_divide_return_int) ... ok
+test_minus (CalcTest.TestCalculator.test_minus) ... ok
+test_multiply (CalcTest.TestCalculator.test_multiply) ... ok
+test_negative_number_divide_round (CalcTest.TestCalculator.test_negative_number_divide_round) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.000s
+
+OK
+```
+
+**Agent:**
+
+我寫好了 `Calc.py`，7 個測試全部通過。
+
+```python
+class Calculator:
+    def add(self, a, b):      return a + b
+    def minus(self, a, b):    return a - b
+    def multiply(self, a, b): return a * b
+    def divide(self, a, b):   return a // b
+```
+
+`divide` 用的是 `//`（向下取整除法），剛好符合三個測試的要求：
+- `7 // 3` 得到 `2`，型別是 `int`。
+- `-7 // 3` 得到 `-3`，因為它往負無限大方向取整，不是往 0 取整。
+- 除以 0 時，Python 本身就會丟出 `ZeroDivisionError`，不需要另外處理。
+
+我還沒有 commit。
