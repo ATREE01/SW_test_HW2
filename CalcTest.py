@@ -1,6 +1,7 @@
 import unittest
 from Calc import Calculator  # The class we are going to implement
 
+
 class TestCalculator(unittest.TestCase):
     def test_add(self):
         calc = Calculator()
@@ -35,7 +36,8 @@ class TestCalculator(unittest.TestCase):
     def test_divide_return_int(self):
         calc = Calculator()
         result = calc.divide(7, 3)
-        self.assertIsInstance(result, int)  # Expect the result to be an integer
+        self.assertIsInstance(result, int)  # Expect the result to be an int
+
 
 if __name__ == "__main__":
     unittest.main()
