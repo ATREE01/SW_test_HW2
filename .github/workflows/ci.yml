@@ -14,5 +14,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run unit tests
-        run: python -m unittest CalcTest -v
+      - name: Install verification tools
+        run: pip install coverage==7.16.1 flake8==7.4.1
+
+      - name: Run unit tests with coverage
+        run: coverage run --branch --source=Calc -m unittest CalcTest -v
+
+      - name: Check coverage
+        run: |
+          coverage report -m --fail-under=100
+          {
+            echo "## Coverage"
+            echo '```'
+            coverage report -m
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Static analysis (flake8)
+        run: flake8 Calc.py CalcTest.py
