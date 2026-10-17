@@ -38,6 +38,11 @@ class TestCalculator(unittest.TestCase):
         result = calc.divide(7, 3)
         self.assertIsInstance(result, int)  # Expect the result to be an int
 
+    def test_modulo(self):
+        calc = Calculator()
+        result = calc.modulo(7, 3)
+        self.assertEqual(result, 1)  # Expect 7 % 3 = 1
+
 
 if __name__ == "__main__":
     unittest.main()
