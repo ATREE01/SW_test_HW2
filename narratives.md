@@ -685,3 +685,452 @@ These are formatting changes only. No logic or assertion was changed, and all se
 ## AI Usage
 
 The CI workflow and the flake8 fixes for Question 3 were written by Claude Code v2.1.296 (model `claude-opus-5-5`) in the same session that helped with the report for Questions 1 and 2. The prompts and responses are in `AI_usage_log.md`.
+
+---
+
+# HW2 — Question 6: Agentic TDD for `modulo` and `power`
+
+- Agent: Claude Code v2.1.296, model Claude Opus 5.5 (`claude-opus-5-5`)
+- Session: a new session started in `HW2/`, separate from the session used for the other questions (session ID `3d4975b3-9817-4c51-99c0-af97d8a17473`)
+- Starting point: tag `q3-done` (Calc from Question 1, plus the CI from Questions 2 and 3)
+- Full prompts and responses: `AI_usage_log.md`, section "Question 6"
+
+## Rules Given to the Agent
+
+The first prompt (verbatim, in Chinese):
+
+```text
+我們要用嚴格的 TDD 在 Calc.py 加兩個功能：modulo 和 power。請遵守以下規則：
+
+1. 每個 cycle 你只能先寫「一個」失敗的測試到 CalcTest.py，不能修改 Calc.py。
+2. 寫完後執行 python3 -m unittest CalcTest -v，給我看失敗的輸出，然後停下來等我 review。
+3. 我 review 完會自己 commit 測試。我說可以實作之後，你才修改 Calc.py 讓測試通過，並另外 commit。
+4. 測試一旦 commit，沒有我的同意你不能修改或刪除它。
+5. 在實作之前，必須用測試決定好以下行為：
+   - modulo 的運算元有負數時的結果
+   - modulo 除以 0 的結果
+   - power(0, 0) 的結果
+   - power 的指數為負數時回傳什麼
+6. CI 會跑 flake8，而且 Calc.py 的 coverage 必須是 100%。
+
+先從第一個 cycle 開始。
+```
+
+The prompt deliberately did **not** tell the agent to ask me about the four decisions, so that I could observe whether it would decide them on its own.
+
+## Design Decisions Encoded in Tests
+
+| Decision (requirement c) | Choice | Test | Who decided |
+|---|---|---|---|
+| `modulo` with a negative operand | Result takes the sign of the divisor, as Python's `%` does: `modulo(-7, 3) == 2` | `test_modulo_negative_operand` | Agent proposed it, I chose it (cycle 2) |
+| `modulo` by zero | Raises `ZeroDivisionError`, consistent with `divide` | `test_modulo_by_zero` | Agent proposed it, I accepted it (cycle 2) |
+| `power(0, 0)` | `1` | `test_power_zero_to_zero` | Agent proposed it; my instruction "keep Python's behavior" (cycle 4) covered it |
+| `power` with a negative exponent | Returns a float: `power(2, -1) == 0.5` | `test_power_negative_exponent` | Agent asked, I chose it (cycle 4) |
+
+The modulo choice is consistent with the floor division from Question 1: `divide(a, b) * b + modulo(a, b) == a` holds for negative numbers too. The agent pointed this out when it proposed the choice.
+
+## TDD Cycles
+
+### Cycle 1: `modulo`, basic behavior
+
+**Test (written by the agent)**
+
+```python
+def test_modulo(self):
+    calc = Calculator()
+    result = calc.modulo(7, 3)
+    self.assertEqual(result, 1)  # Expect 7 % 3 = 1
+```
+
+**Failing output, before any implementation existed**
+
+```text
+test_modulo (CalcTest.TestCalculator.test_modulo) ... ERROR
+
+======================================================================
+ERROR: test_modulo (CalcTest.TestCalculator.test_modulo)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/atree/NYCU_COURSE/SW_test/HW2/CalcTest.py", line 43, in test_modulo
+    result = calc.modulo(7, 3)
+             ^^^^^^^^^^^
+AttributeError: 'Calculator' object has no attribute 'modulo'
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.001s
+
+FAILED (errors=1)
+```
+
+**Agent's question.** The agent stopped as required, and pointed out a conflict in my rules: rule 3 says to implement after each test, while rule 5 says the four edge cases must be decided by tests *before* implementing. It asked which order I wanted, and proposed a behavior for each of the four edge cases, with reasons (see the table above).
+
+**My review.** The test is correct and minimal. I committed it and told the agent: "for the four case you just keep follow tdd and rule 3 and I've commit the previous test". That is, implement after each test, one cycle per edge case.
+
+Test commit: `09f699f test: add test for modulo function` (by me)
+
+**Agent's change**
+
+```python
+def modulo(self, a, b):
+    return a % b
+```
+
+All 8 tests passed, `Calc.py` coverage was 100%, and flake8 reported nothing.
+
+Implementation commit: `f8cb7ea feat: implement Calculator.modulo` (by the agent)
+
+**Refactor:** none needed. The method is a single expression.
+
+---
+
+### Cycle 2: `modulo` with a negative operand
+
+**Test (written by the agent)**
+
+```python
+def test_modulo_negative_operand(self):
+    calc = Calculator()
+    result = calc.modulo(-7, 3)
+    self.assertEqual(result, 2)  # Expect -7 % 3 = 2 (sign of divisor)
+```
+
+**Output: the test passed immediately.**
+
+```text
+test_modulo_negative_operand (CalcTest.TestCalculator.test_modulo_negative_operand) ... ok
+...
+Ran 9 tests in 0.000s
+
+OK
+```
+
+**Agent's question.** The agent noticed that this test did not fail, because Python's `%` already follows the sign of the divisor, so the test does not satisfy rule 1. It stopped and offered two options:
+
+1. Keep the expected value `2`, treat the test as a specification test that pins the behavior down, and skip the implementation step.
+2. Switch to the C convention (sign of the dividend, `-7 mod 3 = -1`). The test would then fail and need an implementation, but `modulo` would no longer be consistent with the floor division in `divide`.
+
+It recommended option 1 and said it would handle `modulo(5, 0)` the same way.
+
+**My review.** I agreed with option 1, because it keeps `modulo` consistent with `divide`. I committed the test and replied "chose option1 and I've commit the test".
+
+Test commit: `814af72 feat: add test for modulo negative operand` (by me). The prefix should have been `test:`. The agent pointed out this mistake in its next reply. I left the commit unchanged rather than rewrite history.
+
+**Agent's change:** none. No implementation was needed.
+
+---
+
+### Cycle 3: `modulo` by zero
+
+**Test (written by the agent)**
+
+```python
+def test_modulo_by_zero(self):
+    calc = Calculator()
+    with self.assertRaises(ZeroDivisionError):
+        calc.modulo(5, 0)  # Expect modulo by zero to raise an error
+```
+
+**Output: the test passed immediately**, because `%` already raises `ZeroDivisionError`.
+
+```text
+test_modulo_by_zero (CalcTest.TestCalculator.test_modulo_by_zero) ... ok
+...
+Ran 10 tests in 0.000s
+
+OK
+```
+
+**My review.** This matches `test_divide_by_zero` from Question 1. I committed the test and replied "commited, keep going".
+
+Test commit: `168d0af test: add test for modulo by zero` (by me)
+
+**Agent's change:** none. No implementation was needed.
+
+---
+
+### Cycle 4: `power`, basic behavior
+
+**Test (written by the agent)**
+
+```python
+def test_power(self):
+    calc = Calculator()
+    result = calc.power(2, 3)
+    self.assertEqual(result, 8)  # Expect 2 ** 3 = 8
+```
+
+**Failing output, before any implementation existed**
+
+```text
+test_power (CalcTest.TestCalculator.test_power) ... ERROR
+
+======================================================================
+ERROR: test_power (CalcTest.TestCalculator.test_power)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/atree/NYCU_COURSE/SW_test/HW2/CalcTest.py", line 58, in test_power
+    result = calc.power(2, 3)
+             ^^^^^^^^^^
+AttributeError: 'Calculator' object has no attribute 'power'
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.000s
+
+FAILED (errors=1)
+```
+
+**Agent's question.** Before implementing, the agent warned that `return a ** b` would make the two remaining `power` edge-case tests pass immediately. It asked how a negative exponent should behave: return a float, as Python does (`0.5`), or raise `ValueError` so that `power`, like `divide`, always returns an `int`.
+
+**My review.** The test is correct. I committed it and replied "commited, keep going. Just keep the behavior as what python originally does".
+
+Test commit: `b5b0a4f test: add test for power function` (by me)
+
+**Agent's change**
+
+```python
+def power(self, a, b):
+    return a ** b
+```
+
+All 11 tests passed, `Calc.py` coverage was 100%, and flake8 reported nothing.
+
+Implementation commit: `e109f70 feat: implement Calculator.power` (by the agent)
+
+**Refactor:** none needed. The method is a single expression.
+
+---
+
+### Cycle 5: `power(0, 0)`
+
+**Test (written by the agent)**
+
+```python
+def test_power_zero_to_zero(self):
+    calc = Calculator()
+    result = calc.power(0, 0)
+    self.assertEqual(result, 1)  # Expect 0 ** 0 = 1
+```
+
+**Output: the test passed immediately**, because Python defines `0 ** 0 == 1`.
+
+```text
+test_power_zero_to_zero (CalcTest.TestCalculator.test_power_zero_to_zero) ... ok
+...
+Ran 12 tests in 0.000s
+
+OK
+```
+
+**My review.** `1` is the usual convention and matches what I asked for (keep Python's behavior). I committed the test and replied "commited, keep going".
+
+Test commit: `2c08902 test: add test for power zero to zero` (by me)
+
+**Agent's change:** none. No implementation was needed.
+
+---
+
+### Cycle 6: `power` with a negative exponent
+
+**Test (written by the agent)**
+
+```python
+def test_power_negative_exponent(self):
+    calc = Calculator()
+    result = calc.power(2, -1)
+    self.assertEqual(result, 0.5)  # Expect 2 ** -1 = 0.5 (a float)
+```
+
+**Output: the test passed immediately**, because `2 ** -1` is `0.5` in Python.
+
+```text
+test_power_negative_exponent (CalcTest.TestCalculator.test_power_negative_exponent) ... ok
+...
+Ran 13 tests in 0.001s
+
+OK
+```
+
+**My review.** This matches my choice in cycle 4. I committed the test.
+
+Test commit: `4214f94 test: add test for negative exponent` (by me)
+
+**Agent's change:** none. No implementation was needed.
+
+## Refactoring
+
+No refactoring was done. Each new method is a single expression (`a % b`, `a ** b`), and the agent made no other changes to `Calc.py`.
+
+## Rule Compliance
+
+### Rules the agent followed
+
+I checked the transcript and the git history (`git show --numstat` for every commit since `q3-done`):
+
+- **It never wrote an implementation first.** `Calc.py` changed only in `f8cb7ea` and `e109f70`, and each of those comes after the test commit it makes pass.
+- **It never changed or deleted a test.** Since `q3-done`, `git diff` on `CalcTest.py` shows only added lines. No existing assertion was weakened.
+- **It added exactly one test per cycle**, and showed the test output each time.
+- **It never committed a test.** All six test commits were made by me. The agent made only the two `feat:` commits.
+- **It kept CI green locally.** Before each implementation commit it ran the same checks as CI: coverage at 100% and flake8 clean.
+
+### Deviations from the rules
+
+1. **Four of the six tests never failed (requirement a).** The tests for the four edge cases (cycles 2, 3, 5 and 6) passed as soon as they were written, because `a % b` and `a ** b` already had Python's behavior. So for these behaviors, no failing test output exists before the implementation.
+   - **Cause:** the cycle order. The basic `modulo` and `power` were implemented before their edge-case tests were written.
+   - **Who chose this:** I did. The agent pointed out the conflict between rule 3 and rule 5 in cycle 1 and asked which order I wanted. I told it to follow rule 3.
+   - **Better order:** write all three `modulo` tests before implementing `modulo`. Each would then fail with `AttributeError`, and the edge-case decisions would be fixed before any implementation, as requirement (c) asks.
+   - The agent did not hide this. Each time, it said explicitly that the test passed immediately, and in cycle 2 it stopped to ask how to proceed.
+2. **The edge-case decisions were not all fixed before implementing (requirement c).** `modulo` was implemented (`f8cb7ea`) before the negative-operand and divide-by-zero tests existed. `power` was implemented (`e109f70`) before the `0 ** 0` and negative-exponent tests existed. The implementations therefore fixed these behaviors implicitly, before any test did. This follows from deviation 1.
+3. **Borderline: implementing without an explicit "go ahead".** Rule 3 says the agent may implement only after I say so. In cycles 1 and 4, my message said "I've committed" or "keep going" rather than "implement now". The agent read that as approval and implemented right away. That matches what I intended, but the approval was implicit.
+
+### Decisions in requirement (c) that the agent made without asking me
+
+None was made completely silently, but the agent wrote expected values into tests before I had explicitly agreed to them:
+
+| Decision | Did the agent ask? |
+|---|---|
+| `modulo` with a negative operand | It proposed `2` in cycle 1 and wrote the test with `2` before I replied. It then asked explicitly in cycle 2 (option 1 or 2). |
+| `modulo` by zero | It proposed `ZeroDivisionError` in cycle 1. It did not ask again separately, but option 1 in cycle 2 said "I'd do the same for `modulo(5, 0)`". |
+| `power(0, 0)` | It proposed `1` in cycle 1 and **never asked about it separately**. My instruction "keep the behavior as what python originally does" covered it. |
+| Negative exponent | It asked explicitly in cycle 4 (float or `ValueError`). |
+
+All four proposals were Python's default behavior, so the decisions mostly followed the implementation language. The agent did, however, always state the alternative and the trade-off, for example consistency with `divide`, or keeping `power` integer-only.
+
+## Final Version of Calc
+
+```python
+class Calculator:
+    def add(self, a, b):
+        return a + b
+
+    def minus(self, a, b):
+        return a - b
+
+    def multiply(self, a, b):
+        return a * b
+
+    def divide(self, a, b):
+        return a // b
+
+    def modulo(self, a, b):
+        return a % b
+
+    def power(self, a, b):
+        return a ** b
+```
+
+## All Tests
+
+```python
+import unittest
+from Calc import Calculator  # The class we are going to implement
+
+
+class TestCalculator(unittest.TestCase):
+    def test_add(self):
+        calc = Calculator()
+        result = calc.add(2, 3)
+        self.assertEqual(result, 5)  # Expect 2 + 3 = 5
+
+    def test_minus(self):
+        calc = Calculator()
+        result = calc.minus(5, 3)
+        self.assertEqual(result, 2)  # Expect 5 - 3 = 2
+
+    def test_multiply(self):
+        calc = Calculator()
+        result = calc.multiply(2, 3)
+        self.assertEqual(result, 6)  # Expect 2 * 3 = 6
+
+    def test_divide(self):
+        calc = Calculator()
+        result = calc.divide(7, 3)
+        self.assertEqual(result, 2)  # Expect 7 / 3 = 2
+
+    def test_divide_by_zero(self):
+        calc = Calculator()
+        with self.assertRaises(ZeroDivisionError):
+            calc.divide(5, 0)  # Expect division by zero to raise an error
+
+    def test_negative_number_divide_round(self):
+        calc = Calculator()
+        result = calc.divide(-7, 3)
+        self.assertEqual(result, -3)  # Expect -7 / 3 = -3 (floor division)
+
+    def test_divide_return_int(self):
+        calc = Calculator()
+        result = calc.divide(7, 3)
+        self.assertIsInstance(result, int)  # Expect the result to be an int
+
+    def test_modulo(self):
+        calc = Calculator()
+        result = calc.modulo(7, 3)
+        self.assertEqual(result, 1)  # Expect 7 % 3 = 1
+
+    def test_modulo_negative_operand(self):
+        calc = Calculator()
+        result = calc.modulo(-7, 3)
+        self.assertEqual(result, 2)  # Expect -7 % 3 = 2 (sign of divisor)
+
+    def test_modulo_by_zero(self):
+        calc = Calculator()
+        with self.assertRaises(ZeroDivisionError):
+            calc.modulo(5, 0)  # Expect modulo by zero to raise an error
+
+    def test_power(self):
+        calc = Calculator()
+        result = calc.power(2, 3)
+        self.assertEqual(result, 8)  # Expect 2 ** 3 = 8
+
+    def test_power_zero_to_zero(self):
+        calc = Calculator()
+        result = calc.power(0, 0)
+        self.assertEqual(result, 1)  # Expect 0 ** 0 = 1
+
+    def test_power_negative_exponent(self):
+        calc = Calculator()
+        result = calc.power(2, -1)
+        self.assertEqual(result, 0.5)  # Expect 2 ** -1 = 0.5 (a float)
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+## Test Results
+
+```text
+test_add (CalcTest.TestCalculator.test_add) ... ok
+test_divide (CalcTest.TestCalculator.test_divide) ... ok
+test_divide_by_zero (CalcTest.TestCalculator.test_divide_by_zero) ... ok
+test_divide_return_int (CalcTest.TestCalculator.test_divide_return_int) ... ok
+test_minus (CalcTest.TestCalculator.test_minus) ... ok
+test_modulo (CalcTest.TestCalculator.test_modulo) ... ok
+test_modulo_by_zero (CalcTest.TestCalculator.test_modulo_by_zero) ... ok
+test_modulo_negative_operand (CalcTest.TestCalculator.test_modulo_negative_operand) ... ok
+test_multiply (CalcTest.TestCalculator.test_multiply) ... ok
+test_negative_number_divide_round (CalcTest.TestCalculator.test_negative_number_divide_round) ... ok
+test_power (CalcTest.TestCalculator.test_power) ... ok
+test_power_negative_exponent (CalcTest.TestCalculator.test_power_negative_exponent) ... ok
+test_power_zero_to_zero (CalcTest.TestCalculator.test_power_zero_to_zero) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.001s
+
+OK
+```
+
+<!-- 截圖：push 後 CI 全綠，或本地 python3 -m unittest CalcTest -v 全部通過 -->
+![All tests pass](screenshots/Q6_all_pass.png)
+
+## Git Log
+
+```text
+4214f94 test: add test for negative exponent
+2c08902 test: add test for power zero to zero
+e109f70 feat: implement Calculator.power
+b5b0a4f test: add test for power function
+168d0af test: add test for modulo by zero
+814af72 feat: add test for modulo negative operand
+f8cb7ea feat: implement Calculator.modulo
+09f699f test: add test for modulo function
+```
