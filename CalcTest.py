@@ -53,6 +53,11 @@ class TestCalculator(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             calc.modulo(5, 0)  # Expect modulo by zero to raise an error
 
+    def test_power(self):
+        calc = Calculator()
+        result = calc.power(2, 3)
+        self.assertEqual(result, 8)  # Expect 2 ** 3 = 8
+
 
 if __name__ == "__main__":
     unittest.main()
