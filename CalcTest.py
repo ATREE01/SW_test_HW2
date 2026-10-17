@@ -27,5 +27,10 @@ class TestCalculator(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             calc.divide(5, 0)  # Expect division by zero to raise an error
 
+    def test_negative_number_divide_round(self):
+        calc = Calculator()
+        result = calc.divide(-7, 3)
+        self.assertEqual(result, -3)  # Expect -7 / 3 = -3 (floor division)
+
 if __name__ == "__main__":
     unittest.main()
