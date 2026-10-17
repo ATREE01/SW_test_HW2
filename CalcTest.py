@@ -12,5 +12,10 @@ class TestCalculator(unittest.TestCase):
         result = calc.minus(5, 3)
         self.assertEqual(result, 2)  # Expect 5 - 3 = 2
 
+    def test_multiply(self):
+        calc = Calculator()
+        result = calc.multiply(2, 3)
+        self.assertEqual(result, 6)  # Expect 2 * 3 = 6
+
 if __name__ == "__main__":
     unittest.main()
