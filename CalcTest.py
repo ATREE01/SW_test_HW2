@@ -43,6 +43,11 @@ class TestCalculator(unittest.TestCase):
         result = calc.modulo(7, 3)
         self.assertEqual(result, 1)  # Expect 7 % 3 = 1
 
+    def test_modulo_negative_operand(self):
+        calc = Calculator()
+        result = calc.modulo(-7, 3)
+        self.assertEqual(result, 2)  # Expect -7 % 3 = 2 (sign of divisor)
+
 
 if __name__ == "__main__":
     unittest.main()
