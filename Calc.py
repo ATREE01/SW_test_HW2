@@ -13,3 +13,6 @@ class Calculator:
 
     def modulo(self, a, b):
         return a % b
+
+    def power(self, a, b):
+        return a ** b
