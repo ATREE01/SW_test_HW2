@@ -22,5 +22,10 @@ class TestCalculator(unittest.TestCase):
         result = calc.divide(7, 3)
         self.assertEqual(result, 2)  # Expect 7 / 3 = 2
 
+    def test_divide_by_zero(self):
+        calc = Calculator()
+        with self.assertRaises(ZeroDivisionError):
+            calc.divide(5, 0)  # Expect division by zero to raise an error
+
 if __name__ == "__main__":
     unittest.main()
